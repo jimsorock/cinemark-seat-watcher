@@ -389,15 +389,41 @@ def detect_new_showtimes(state, all_shows):
     is not enough: the run that completes sweep #1 has itself just probed several
     dates for the first time, and those would look "new". Waiting for the second
     sweep means the whole horizon is already recorded before anything is reported.
+
+    Two things make this resistant to false "new" alerts:
+
+    * Showtimes are identified by their date+time SLOT, not by ShowtimeId. Cinemark
+      reassigns ids when it reshuffles a schedule, and an id change for a slot we
+      already knew about is not news.
+    * Known slots are ACCUMULATED (union), never replaced by "what we can see right
+      now". Discovery is incremental and rewrites one date at a time, so a date can
+      briefly vanish from the map — from a throttled or partial page, or simply
+      because the cursor hasn't come back to it. Replacing the known set each run
+      made every such blip resurface later as a bogus "new showtime".
+
+    Growth is bounded by dropping slots once they are in the past.
     """
-    ids = {s["showtime_id"] for s in all_shows}
-    known = set(state.get("known_showtime_ids", []))
+    now = now_local()
+    slots = {s["showtime_iso"] for s in all_shows}
+    known = set(state.get("known_slots", []))
     seeded = state.get("sweeps", 0) >= 2
-    # Store only still-upcoming ids so this never grows without bound.
-    state["known_showtime_ids"] = sorted(ids)
+    # Upgrading from the old id-based key: the whole existing schedule is already
+    # known, so record it silently instead of announcing all of it as "new".
+    migrating = "known_slots" not in state
+
+    def still_ahead(iso):
+        return dt.datetime.fromisoformat(iso).replace(tzinfo=THEATER_TZ) > now
+
+    state["known_slots"] = sorted(s for s in known | slots if still_ahead(s))
+    state.pop("known_showtime_ids", None)       # retire the old id-based key
+
+    if migrating:
+        log(f"Recorded {len(slots)} existing showtime slot(s); "
+            f"new-showtime alerts start from here.")
+        return []
     if not (NOTIFY_NEW_SHOWTIMES and seeded):
         return []
-    return [s for s in all_shows if s["showtime_id"] not in known]
+    return [s for s in all_shows if s["showtime_iso"] not in known]
 
 
 def new_showtimes_message(new_shows):
