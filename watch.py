@@ -53,6 +53,10 @@ MOVIE_NAME   = "Dune: Part Three"
 MOVIE_FORMAT = "IMAX 70mm"
 MOVIE_ID     = "109913"                    # from the seat-map URL (CinemarkMovieId)
 MOVIE_LABEL  = f"{MOVIE_NAME} ({MOVIE_FORMAT})"
+# Cinemark's showtimes page lists each showing by name, e.g.
+# "Dune: Part Three - IMAX 70mm 11:30 AM 70mm Screening". A showing counts when its
+# name contains this text.
+MOVIE_NAME_MATCH = f"{MOVIE_NAME} - {MOVIE_FORMAT}"
 
 # Which showtimes to watch. None = EVERY showtime of the movie, whatever the time.
 # (Cinemark shifted the schedule mid-run — 11:30/3:15 became 11:45/3:30 from 8/21 —
@@ -152,7 +156,13 @@ LINK_RE = re.compile(
 
 # Does this theater have ANY showtime (any movie) on the page? Used to detect the
 # end of Cinemark's booking window during discovery.
-ANY_SHOWTIME_RE = re.compile(r'TicketSeatMap/\?TheaterId=\d+&ShowtimeId=\d+')
+ANY_SHOWTIME_RE = re.compile(r'TicketSeatMap/\?(?:TheaterId=\d+&ShowtimeId|showtimeId)=\d+')
+
+# The showtimes page embeds schema.org events: a "name", then an offer whose url is
+# TicketSeatMap/?showtimeId=N, then a "startDate" (theater-local time + UTC offset).
+EVENT_RE = re.compile(
+    r'"name\\?":\\?"([^"\\]*)\\?"[^{}]*\{[^{}]*?TicketSeatMap/\?showtimeId=(\d+)'
+    r'[^{}]*\}[^{}]*?"startDate\\?":\\?"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)')
 
 BUTTON_RE = re.compile(r'<button\b([^>]*)>')
 
@@ -226,9 +236,11 @@ def get(url):
 def parse_day(page, iso):
     """Matching target showtimes on one date's theater page -> list of dicts."""
     out, seen = [], set()
-    for theater, sid, movie, when in LINK_RE.findall(page):
-        if theater != THEATER_ID or movie != MOVIE_ID:
-            continue
+    found = [(THEATER_ID, sid, MOVIE_ID, when)
+             for name, sid, when in EVENT_RE.findall(page) if MOVIE_NAME_MATCH in name]
+    found += [m for m in LINK_RE.findall(page)
+              if m[0] == THEATER_ID and m[2] == MOVIE_ID]       # older page format
+    for theater, sid, movie, when in found:
         day, clock = when.split("T")
         if day != iso or sid in seen:
             continue
