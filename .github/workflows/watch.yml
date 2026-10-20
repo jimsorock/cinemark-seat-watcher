@@ -1,4 +1,4 @@
-name: Odyssey Seat Watcher
+name: Movie Seat Watcher
 
 on:
   schedule:
@@ -34,9 +34,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: state.json
-          key: seatstate-${{ github.run_id }}
+          key: seatstate-dune3-${{ github.run_id }}
           restore-keys: |
-            seatstate-
+            seatstate-dune3-
 
       - name: Run watcher
         env:

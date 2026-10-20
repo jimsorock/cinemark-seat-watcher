@@ -1,6 +1,7 @@
-# Odyssey Seat Watcher
+# Cinemark Movie Seat Watcher
 
-Polls Cinemark for **The Odyssey (IMAX 70mm)** at **Cinemark Dallas XD and IMAX**
+Polls Cinemark for a configurable movie (currently **Dune: Part Three, IMAX 70mm**) at
+**Cinemark Dallas XD and IMAX**
 and sends a **Telegram** message when a seat opens up that matches:
 
 - **Dates:** today → open-ended. The start advances daily so it never searches
@@ -44,7 +45,7 @@ keep every run well under that cap (and under the Actions job timeout):
   showtimes exist, so a run never fetches more than `MAX_SEATMAPS_PER_RUN` seat maps.
   More dates → more shards → each showtime is checked every *(shards × 5)* minutes.
 
-- **Near-window seat watching** (`WATCH_AHEAD_DAYS`, default **14**): only showtimes
+- **Near-window seat watching** (`WATCH_AHEAD_DAYS`, default **14**; set to `None` here for Dune): only showtimes
   within the next two weeks get a seat-map request each run. This is what keeps the
   shard count — and therefore the re-check interval — low.
 
@@ -85,10 +86,10 @@ so the initial fill-in never reports the existing schedule as "new".
 ### 2. Put the code on GitHub
 
 ```bash
-cd odyssey-seat-watcher
-git init && git add . && git commit -m "Odyssey seat watcher"
+cd cinemark-seat-watcher
+git init && git add . && git commit -m "Cinemark seat watcher"
 # create a repo on github.com, then:
-git remote add origin https://github.com/<you>/odyssey-seat-watcher.git
+git remote add origin https://github.com/<you>/cinemark-seat-watcher.git
 git push -u origin main
 ```
 
@@ -105,7 +106,7 @@ Add two:
 ### 4. Turn it on
 
 - Go to the **Actions** tab, enable workflows if prompted.
-- Open **Odyssey Seat Watcher** → **Run workflow** to test it immediately.
+- Open **Movie Seat Watcher** → **Run workflow** to test it immediately.
   (The very first run alerts on anything already available.)
 - After that it runs automatically every 5 minutes.
 
@@ -127,7 +128,13 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... python watch.py   # real run
 
 ## Changing what it watches
 
-All settings are constants at the top of [`watch.py`](watch.py):
+All settings are constants at the top of [`watch.py`](watch.py).
+
+**To watch a different movie**, copy a seat-map URL from Cinemark and set
+`THEATER_ID`, `MOVIE_ID` (`CinemarkMovieId=`), `MOVIE_NAME` / `MOVIE_FORMAT` (alert text)
+and `SEASON_START` (movie opening day). For another theater also set `THEATER_SLUG_URL`
+and `THEATER_TZ`. Bump the `seatstate-` cache key prefix in the workflow so old state
+isn't reused. Other settings:
 `TARGET_TIMES`, `SEASON_START`, `WANTED_ROWS`, `SEAT_MIN` / `SEAT_MAX`,
 `WANTED_SEAT_TYPES` (add `"companion"` if you'd accept a companion seat),
 `HEARTBEAT_EVERY_HOURS`, `WATCH_AHEAD_DAYS` / `NOTIFY_NEW_SHOWTIMES`, and the
@@ -180,7 +187,7 @@ it on time. Using the free [cron-job.org](https://cron-job.org):
    settings → Fine-grained tokens): repository access = this repo only, permission
    **Actions: Read and write**.
 2. On cron-job.org, create a job that runs every 5 minutes:
-   - URL: `https://api.github.com/repos/<you>/odyssey-seat-watcher/actions/workflows/watch.yml/dispatches`
+   - URL: `https://api.github.com/repos/<you>/cinemark-seat-watcher/actions/workflows/watch.yml/dispatches`
    - Method: `POST`
    - Body: `{"ref":"main"}`
    - Headers:

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Odyssey seat watcher.
+Cinemark movie seat watcher.
 
-Polls Cinemark's seat maps for "The Odyssey" (IMAX 70mm) at Cinemark Dallas XD
-and IMAX, and alerts via Telegram when a seat matching your criteria opens up.
+Polls Cinemark's seat maps for the movie configured below (MOVIE_NAME /
+MOVIE_ID) at one theater, and alerts via Telegram when a seat matching your criteria opens up.
 
 How it works (all plain HTTP, no browser needed):
   1. Discover which ShowtimeId belongs to each target date/time by reading the
@@ -46,7 +46,13 @@ THEATER_ID       = "207"
 # which ShowtimeId belongs to each date/time.
 THEATER_SLUG_URL = "https://www.cinemark.com/theatres/tx-dallas/cinemark-dallas-xd-and-imax"
 
-MOVIE_ID     = "104867"                    # The Odyssey — IMAX 70mm (from your URL)
+# The movie to watch. MOVIE_ID is the CinemarkMovieId from a seat-map URL; it is
+# specific to the format (e.g. the IMAX 70mm listing has its own ID). MOVIE_NAME and
+# MOVIE_LABEL are only used in the alert text.
+MOVIE_NAME   = "Dune: Part Three"
+MOVIE_FORMAT = "IMAX 70mm"
+MOVIE_ID     = "109913"                    # from the seat-map URL (CinemarkMovieId)
+MOVIE_LABEL  = f"{MOVIE_NAME} ({MOVIE_FORMAT})"
 
 # Which showtimes to watch. None = EVERY showtime of the movie, whatever the time.
 # (Cinemark shifted the schedule mid-run — 11:30/3:15 became 11:45/3:30 from 8/21 —
@@ -63,7 +69,7 @@ THEATER_TZ   = ZoneInfo("America/Chicago")
 # the movie opened) and has NO fixed end: discovery walks forward until it passes
 # how far Cinemark has opened ticket sales, so newly-added dates are picked up
 # automatically. See advance_discovery().
-SEASON_START = dt.date(2026, 7, 21)        # movie's first day (floor)
+SEASON_START = dt.date(2026, 12, 18)       # movie's first day (floor)
 
 # Discovery walks forward until the theater has NO showtimes for ANY movie for
 # this many consecutive days (i.e. we've passed the booking horizon), then stops.
@@ -102,7 +108,8 @@ MAX_SEATMAPS_PER_RUN = 16
 # discovery still sweeps the whole horizon, and NOTIFY_NEW_SHOWTIMES alerts you as
 # soon as a showtime appears on ANY future date — you just don't burn a request per
 # run watching its seats until it comes within the window. None = watch all dates.
-WATCH_AHEAD_DAYS = 14
+# Dune opens months out and has few showtimes, so seat-watch every date.
+WATCH_AHEAD_DAYS = None
 NOTIFY_NEW_SHOWTIMES = True
 
 # Send a "still alive, no matching seats yet" heartbeat at most this often
@@ -427,7 +434,7 @@ def detect_new_showtimes(state, all_shows):
 
 
 def new_showtimes_message(new_shows):
-    lines = ["\U0001F195 New Odyssey (IMAX 70mm) showtime(s) on sale:\n"]
+    lines = [f"\U0001F195 New {MOVIE_LABEL} showtime(s) on sale:\n"]
     for s in sorted(new_shows, key=lambda x: x["showtime_iso"]):
         t12 = dt.datetime.strptime(s["time"], "%H:%M:%S").strftime("%-I:%M %p")
         lines.append(f"{s['date']}  {t12}")
@@ -529,7 +536,7 @@ def save_state(state):
 # ---- alerting ---------------------------------------------------------------
 
 def format_message(hits, new_keys):
-    lines = ["\U0001F3AC The Odyssey (IMAX 70mm) — seat(s) available!\n"]
+    lines = [f"\U0001F3AC {MOVIE_LABEL} — seat(s) available!\n"]
     by_show = {}
     for key, h in hits.items():
         by_show.setdefault((h["date"], h["time"], h["url"]), []).append((key, h))
@@ -593,7 +600,7 @@ def heartbeat_message(all_shows, available_keys):
             continue
         groups.setdefault((s["date"], s["time"]), []).append(seat)
 
-    lines = [f"\U0001F440 Odyssey watcher is alive — {now}",
+    lines = [f"\U0001F440 {MOVIE_NAME} watcher is alive — {now}",
              f"Watching {len(all_shows)} upcoming showtime(s)."]
     if groups:
         total = sum(len(v) for v in groups.values())
