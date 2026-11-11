@@ -82,6 +82,11 @@ SEASON_START = dt.date(2026, 12, 18)       # movie's first day (floor)
 STOP_AFTER_EMPTY_DAYS = 4
 MAX_LOOKAHEAD_DAYS    = 120                 # hard safety cap on how far to probe
 
+# Which days of the week to watch (Monday=0 ... Sunday=6): weekdays only.
+WATCH_WEEKDAYS = {0, 1, 2, 3, 4}
+# Date ranges (inclusive) to skip entirely, e.g. holiday travel.
+EXCLUDE_DATE_RANGES = [(dt.date(2026, 12, 21), dt.date(2027, 1, 4))]
+
 # Seat filter: rows E through J, seat numbers 7 through 21.
 WANTED_ROWS = {"E", "F", "G", "H", "I", "J"}
 SEAT_MIN, SEAT_MAX = 7, 21
@@ -201,10 +206,19 @@ def start_date():
     return d
 
 
+def date_wanted(d):
+    """True if showtimes on date `d` should be watched (weekday, not excluded)."""
+    if d.weekday() not in WATCH_WEEKDAYS:
+        return False
+    return not any(lo <= d <= hi for lo, hi in EXCLUDE_DATE_RANGES)
+
+
 def upcoming(shows):
-    """Drop showtimes that have already started (e.g. today's 11:30 at 1pm)."""
+    """Drop showtimes that have already started (e.g. today's 11:30 at 1pm), and
+    any on days we don't watch (weekends / excluded ranges)."""
     now = now_local()
-    return [s for s in shows if showtime_dt(s) > now]
+    return [s for s in shows if showtime_dt(s) > now
+            and date_wanted(dt.date.fromisoformat(s["date"]))]
 
 
 PAUSE = REQUEST_PAUSE          # set per-run by plan_run(); see ADAPTIVE RUN SIZE
@@ -295,6 +309,10 @@ def advance_discovery(state, batch=DISCO_BATCH_DATES):
             state["sweeps"] = state.get("sweeps", 0) + 1
             break
         iso = cur.isoformat()
+        if not date_wanted(cur):                    # skipped day: no request, and
+            smap.pop(iso, None)                     # it doesn't count toward the
+            cur += dt.timedelta(days=1)             # end-of-horizon streak
+            continue
         try:
             page = html.unescape(get(f"{THEATER_SLUG_URL}?showDate={iso}"))
         except Exception as e:
@@ -334,6 +352,9 @@ def full_discovery():
     hard_end = now_local().date() + dt.timedelta(days=MAX_LOOKAHEAD_DAYS)
     while cur <= hard_end:
         iso = cur.isoformat()
+        if not date_wanted(cur):
+            cur += dt.timedelta(days=1)
+            continue
         try:
             page = html.unescape(get(f"{THEATER_SLUG_URL}?showDate={iso}"))
         except Exception as e:
