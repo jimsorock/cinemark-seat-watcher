@@ -136,7 +136,7 @@ and `SEASON_START` (movie opening day). For another theater also set `THEATER_SL
 and `THEATER_TZ`. Bump the `seatstate-` cache key prefix in the workflow so old state
 isn't reused. Other settings:
 `TARGET_TIMES`, `SEASON_START`, `WATCH_WEEKDAYS` (default Mon–Fri) and
-`EXCLUDE_DATE_RANGES` (default Dec 21 2026 – Jan 4 2027; those days aren't even requested), `WANTED_ROWS`, `SEAT_MIN` / `SEAT_MAX`,
+`EXCLUDE_DATE_RANGES` (default Dec 24 2026 – Jan 4 2027; those days aren't even requested), `WANTED_ROWS`, `SEAT_MIN` / `SEAT_MAX`,
 `WANTED_SEAT_TYPES` (add `"companion"` if you'd accept a companion seat),
 `HEARTBEAT_EVERY_HOURS`, `WATCH_AHEAD_DAYS` / `NOTIFY_NEW_SHOWTIMES`, and the
 throttle knobs `DISCO_BATCH_DATES` / `MAX_SEATMAPS_PER_RUN`.

@@ -85,7 +85,7 @@ MAX_LOOKAHEAD_DAYS    = 120                 # hard safety cap on how far to prob
 # Which days of the week to watch (Monday=0 ... Sunday=6): weekdays only.
 WATCH_WEEKDAYS = {0, 1, 2, 3, 4}
 # Date ranges (inclusive) to skip entirely, e.g. holiday travel.
-EXCLUDE_DATE_RANGES = [(dt.date(2026, 12, 21), dt.date(2027, 1, 4))]
+EXCLUDE_DATE_RANGES = [(dt.date(2026, 12, 24), dt.date(2027, 1, 4))]
 
 # Seat filter: rows E through J, seat numbers 7 through 21.
 WANTED_ROWS = {"E", "F", "G", "H", "I", "J"}
