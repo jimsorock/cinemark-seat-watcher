@@ -91,6 +91,11 @@ EXCLUDE_DATE_RANGES = [(dt.date(2026, 12, 24), dt.date(2027, 1, 4))]
 WANTED_ROWS = {"E", "F", "G", "H", "I", "J"}
 SEAT_MIN, SEAT_MAX = 7, 21
 
+# Only alert when at least this many seats are available side by side in the same
+# row (every seat must itself match the row / seat-number filter above). 1 = alert
+# on any single seat.
+PARTY_SIZE = 2
+
 # Which seat types count as a real, bookable seat. "wheelchair" is a wheelchair
 # SPACE (no fixed seat) and "companion" is reserved beside it — excluded by
 # default. Add "companion" here if you'd take one.
@@ -124,7 +129,7 @@ NOTIFY_NEW_SHOWTIMES = True
 # Send a "still alive, no matching seats yet" heartbeat at most this often
 # (hours), so you know the watcher is running even when there's nothing to alert.
 # Any real seat alert also resets this timer. Set to 0 to disable heartbeats.
-HEARTBEAT_EVERY_HOURS = 6
+HEARTBEAT_EVERY_HOURS = 0
 
 # ADAPTIVE RUN SIZE. GitHub's scheduler drops most 5-minute ticks (measured: a run
 # roughly every ~2 hours), but an external trigger hitting workflow_dispatch can fire
@@ -504,7 +509,11 @@ def select_shard(shows, args, shard_count):
 # ---- seat parsing -----------------------------------------------------------
 
 def parse_available_seats(seatmap_html):
-    """Yield (row, seat_num, seat_type) for AVAILABLE seats matching the filter."""
+    """Yield (row, seat_num, seat_type, column) for AVAILABLE seats matching the filter.
+
+    `column` is the seat's physical position in the row (the 4th field of Cinemark's
+    `info`), or None if absent; it is what tells us two seats are actually adjacent.
+    """
     for m in BUTTON_RE.finditer(seatmap_html):
         attrs = m.group(1)
         av = re.search(r'available="([^"]*)"', attrs, re.I)
@@ -523,8 +532,42 @@ def parse_available_seats(seatmap_html):
             num = int(parts[1])
         except ValueError:
             continue
+        try:
+            col = int(parts[3])
+        except (IndexError, ValueError):
+            col = None
         if row in WANTED_ROWS and SEAT_MIN <= num <= SEAT_MAX:
-            yield row, num, seat_type
+            yield row, num, seat_type, col
+
+
+def seats_in_groups(seats, size=PARTY_SIZE):
+    """Keep only seats that sit in a run of >= `size` side-by-side seats in a row.
+
+    `seats` is a list of (row, num, seat_type, col). Two seats are neighbours when
+    their numbers differ by 1 and (if known) their physical columns do too, so an
+    aisle gap in the numbering doesn't count as adjacent.
+    """
+    if size <= 1:
+        return list(seats)
+    by_row = {}
+    for seat in seats:
+        by_row.setdefault(seat[0], []).append(seat)
+    kept = []
+    for row_seats in by_row.values():
+        row_seats.sort(key=lambda x: x[1])
+        run = [row_seats[0]]
+        for prev, cur in zip(row_seats, row_seats[1:]):
+            adjacent = cur[1] - prev[1] == 1 and (
+                prev[3] is None or cur[3] is None or abs(cur[3] - prev[3]) == 1)
+            if adjacent:
+                run.append(cur)
+            else:
+                if len(run) >= size:
+                    kept.extend(run)
+                run = [cur]
+        if len(run) >= size:
+            kept.extend(run)
+    return kept
 
 
 def scan(shows):
@@ -541,7 +584,8 @@ def scan(shows):
             log(f"  ! seat map {s['showtime_id']} ({s['date']} {s['time']}) failed: {e}")
             failed.add(s["showtime_id"])
             continue
-        for row, num, seat_type in parse_available_seats(page):
+        for row, num, seat_type, _col in seats_in_groups(
+                list(parse_available_seats(page))):
             key = f"{s['showtime_id']}:{row}{num}"
             hits[key] = {**s, "row": row, "num": num, "seat_type": seat_type,
                          "seat": f"{row}{num}"}

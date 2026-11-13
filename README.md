@@ -13,7 +13,8 @@ and sends a **Telegram** message when a seat opens up that matches:
   schedule mid-run (11:30/3:15 became 11:45/3:30 from 8/21), and exact-time matching
   silently missed those, so all times are watched. Set `TARGET_TIMES` to a set of
   `"HH:MM:SS"` strings to narrow it again.
-- **Seats:** rows **E–J**, seat numbers **7–21**
+- **Seats:** rows **E–J**, seat numbers **7–21**, and at least **2 side by side** in the same
+  row (`PARTY_SIZE`; set to 1 to alert on single seats)
 
 Runs every 5 minutes on **GitHub Actions** — no server, no cost.
 
@@ -141,10 +142,11 @@ isn't reused. Other settings:
 `HEARTBEAT_EVERY_HOURS`, `WATCH_AHEAD_DAYS` / `NOTIFY_NEW_SHOWTIMES`, and the
 throttle knobs `DISCO_BATCH_DATES` / `MAX_SEATMAPS_PER_RUN`.
 
-### Heartbeat
+### Heartbeat (off by default)
 
-Even when no seats are found, the watcher sends a periodic "still alive" message
-so you know it's running — every `HEARTBEAT_EVERY_HOURS` hours (default **6**). The
+Heartbeats are currently **disabled** (`HEARTBEAT_EVERY_HOURS = 0`), so you only hear about real
+seat openings and new showtimes. When enabled, the watcher sends a periodic "still alive" message
+so you know it's running — every `HEARTBEAT_EVERY_HOURS` hours. The
 first run sends one immediately as a delivery test, and any real seat alert resets
 the timer. Set `HEARTBEAT_EVERY_HOURS = 0` to turn heartbeats off.
 
