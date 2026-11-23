@@ -64,6 +64,11 @@ MOVIE_NAME_MATCH = f"{MOVIE_NAME} - {MOVIE_FORMAT}"
 # To narrow it again, set e.g. {"11:30:00", "15:15:00"}; times must match exactly.
 TARGET_TIMES = None
 
+# Skip showtimes that start before this time ("HH:MM:SS", theater-local), e.g. the
+# 7:45 AM showings. Unlike TARGET_TIMES this needs no exact match, so a schedule
+# shift (11:30 -> 11:45) is still watched. None = no earliest-time limit.
+EARLIEST_TIME = "11:00:00"
+
 # The theater is in Dallas (Central Time). "Today" and "already started" are
 # judged in this zone, NOT the GitHub runner's UTC.
 THEATER_TZ   = ZoneInfo("America/Chicago")
@@ -223,6 +228,7 @@ def upcoming(shows):
     any on days we don't watch (weekends / excluded ranges)."""
     now = now_local()
     return [s for s in shows if showtime_dt(s) > now
+            and (not EARLIEST_TIME or s["time"] >= EARLIEST_TIME)
             and date_wanted(dt.date.fromisoformat(s["date"]))]
 
 
@@ -264,6 +270,8 @@ def parse_day(page, iso):
         if day != iso or sid in seen:
             continue
         if TARGET_TIMES and clock not in TARGET_TIMES:
+            continue
+        if EARLIEST_TIME and clock < EARLIEST_TIME:
             continue
         seen.add(sid)
         out.append({
