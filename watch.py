@@ -68,6 +68,8 @@ TARGET_TIMES = None
 # 7:45 AM showings. Unlike TARGET_TIMES this needs no exact match, so a schedule
 # shift (11:30 -> 11:45) is still watched. None = no earliest-time limit.
 EARLIEST_TIME = "11:00:00"
+# Likewise, skip showtimes that start AFTER this time (the 11 PM showings).
+LATEST_TIME = "22:30:00"
 
 # The theater is in Dallas (Central Time). "Today" and "already started" are
 # judged in this zone, NOT the GitHub runner's UTC.
@@ -229,6 +231,7 @@ def upcoming(shows):
     now = now_local()
     return [s for s in shows if showtime_dt(s) > now
             and (not EARLIEST_TIME or s["time"] >= EARLIEST_TIME)
+            and (not LATEST_TIME or s["time"] <= LATEST_TIME)
             and date_wanted(dt.date.fromisoformat(s["date"]))]
 
 
@@ -272,6 +275,8 @@ def parse_day(page, iso):
         if TARGET_TIMES and clock not in TARGET_TIMES:
             continue
         if EARLIEST_TIME and clock < EARLIEST_TIME:
+            continue
+        if LATEST_TIME and clock > LATEST_TIME:
             continue
         seen.add(sid)
         out.append({
