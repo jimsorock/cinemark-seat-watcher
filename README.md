@@ -13,8 +13,8 @@ and sends a **Telegram** message when a seat opens up that matches:
   schedule mid-run (11:30/3:15 became 11:45/3:30 from 8/21), and exact-time matching
   silently missed those, so all times are watched. Set `TARGET_TIMES` to a set of
   `"HH:MM:SS"` strings to narrow it again.
-- **Earliest start:** `EARLIEST_TIME = "11:00:00"` skips the early-morning (7:45 AM) showings, and
-  `LATEST_TIME = "22:30:00"` skips anything starting after 10:30 PM (the 11 PM showings).
+- **Earliest start:** `EARLIEST_TIME = "11:00:00"` skips the early-morning (7:45 AM) showings. `LATEST_TIME` (off by default)
+  can likewise skip late showings, e.g. `"22:30:00"` to drop the 11 PM ones.
 - **Seats:** rows **E–J**, seat numbers **7–21**, and at least **2 side by side** in the same
   row (`PARTY_SIZE`; set to 1 to alert on single seats)
 
